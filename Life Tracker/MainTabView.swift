@@ -11,7 +11,7 @@ import Foundation
 
 struct MainTabView: View {
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView()
@@ -19,30 +19,36 @@ struct MainTabView: View {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
-            
+
+            AICompanionView()
+                .tabItem {
+                    Label("AI Companion", systemImage: "brain.head.profile")
+                }
+                .tag(1)
+
             CalendarView()
                 .tabItem {
                     Label("Calendar", systemImage: "calendar")
                 }
-                .tag(1)
-            
+                .tag(2)
+
             FinancialView()
                 .tabItem {
                     Label("Financial", systemImage: "dollarsign.circle.fill")
                 }
-                .tag(2)
-            
+                .tag(3)
+
             QuickToolsView()
                 .tabItem {
                     Label("Tools", systemImage: "hammer.fill")
                 }
-                .tag(3)
-            
+                .tag(4)
+
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")
                 }
-                .tag(4)
+                .tag(5)
         }
         .accentColor(.blue)
     }
