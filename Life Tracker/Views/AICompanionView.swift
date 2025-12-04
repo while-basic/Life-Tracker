@@ -11,6 +11,9 @@ struct AICompanionView: View {
     @State private var showModeSelector = false
     @State private var showPromptLibrary = false
     @State private var showAnalytics = false
+    @State private var showConversationHistory = false
+    @State private var showOnboarding = false
+    @State private var showTips = false
     @State private var healthKitAuthorized = false
 
     var body: some View {
@@ -33,6 +36,15 @@ struct AICompanionView: View {
                     }
 
                     Spacer()
+
+                    // Tips button
+                    Button(action: {
+                        showTips = true
+                    }) {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundColor(.orange)
+                            .font(.title3)
+                    }
 
                     Button(action: {
                         showModeSelector = true
@@ -72,19 +84,39 @@ struct AICompanionView: View {
             .navigationTitle("AI Companion")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showConversationHistory = true
+                    }) {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            showPromptLibrary = true
-                        }) {
-                            Image(systemName: "text.book.closed")
+                    Menu {
+                        Button(action: { showPromptLibrary = true }) {
+                            Label("Prompt Library", systemImage: "text.book.closed")
                         }
 
-                        Button(action: {
-                            showAnalytics = true
-                        }) {
-                            Image(systemName: "chart.bar")
+                        Button(action: { showAnalytics = true }) {
+                            Label("Analytics", systemImage: "chart.bar")
                         }
+
+                        Button(action: { showConversationHistory = true }) {
+                            Label("History", systemImage: "clock.arrow.circlepath")
+                        }
+
+                        Divider()
+
+                        Button(action: { showOnboarding = true }) {
+                            Label("How to Use", systemImage: "questionmark.circle")
+                        }
+
+                        Button(action: { showTips = true }) {
+                            Label("Tips for \(viewModel.currentMode.rawValue)", systemImage: "lightbulb.fill")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
@@ -97,9 +129,25 @@ struct AICompanionView: View {
             .sheet(isPresented: $showAnalytics) {
                 AnalyticsView(viewModel: viewModel)
             }
+            .sheet(isPresented: $showConversationHistory) {
+                ConversationHistoryView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showOnboarding) {
+                OnboardingView(isPresented: $showOnboarding)
+            }
+            .sheet(isPresented: $showTips) {
+                TipsView(mode: viewModel.currentMode)
+            }
             .onAppear {
                 requestHealthKitPermission()
                 viewModel.startNewConversation()
+
+                // Show onboarding on first launch
+                if !UserDefaults.standard.bool(forKey: "hasSeenOnboarding") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showOnboarding = true
+                    }
+                }
             }
         }
     }
@@ -211,13 +259,46 @@ struct ConversationView: View {
                 ScrollViewReader { proxy in
                     VStack(spacing: 12) {
                         if let conversation = viewModel.currentConversation {
-                            ForEach(conversation.messages.filter { $0.role != .system }) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
-                            }
+                            let userMessages = conversation.messages.filter { $0.role == .user }
 
-                            if viewModel.isProcessing {
-                                TypingIndicator()
+                            // Show suggested prompts if no messages yet
+                            if userMessages.isEmpty {
+                                VStack(spacing: 20) {
+                                    Spacer()
+
+                                    // Welcome message
+                                    VStack(spacing: 12) {
+                                        Image(systemName: viewModel.currentMode.icon)
+                                            .font(.system(size: 50))
+                                            .foregroundColor(viewModel.currentMode.color)
+
+                                        Text("Welcome to \(viewModel.currentMode.rawValue)")
+                                            .font(.title3)
+                                            .fontWeight(.bold)
+
+                                        Text(viewModel.currentMode.description)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal)
+                                    }
+
+                                    // Suggested prompts
+                                    SuggestedPromptsView(mode: viewModel.currentMode) { prompt in
+                                        messageText = prompt
+                                    }
+
+                                    Spacer()
+                                }
+                            } else {
+                                ForEach(conversation.messages.filter { $0.role != .system }) { message in
+                                    MessageBubble(message: message)
+                                        .id(message.id)
+                                }
+
+                                if viewModel.isProcessing {
+                                    TypingIndicator()
+                                }
                             }
                         }
                     }
